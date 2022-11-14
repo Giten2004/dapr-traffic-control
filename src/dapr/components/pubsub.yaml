@@ -8,17 +8,21 @@ spec:
   version: v1
   metadata:
   - name: host
-    value: "amqp://localhost:5672"
+    value: "amqp://rabbitmq:5672"
   - name: durable
     value: "false"
   - name: deletedWhenUnused
     value: "false"
   - name: autoAck
     value: "false"
+  - name: deliveryMode
+    value: "2"
   - name: reconnectWait
     value: "0"
   - name: concurrency
     value: parallel
+  - name: exchangeKind
+    value: fanout
 scopes:
   - trafficcontrolservice
   - finecollectionservice

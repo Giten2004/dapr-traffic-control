@@ -4,14 +4,16 @@ metadata:
   name: exitcam
   namespace: dapr-trafficcontrol
 spec:
+# mqtt both supports input and output bindings
   type: bindings.mqtt
   version: v1
   metadata:
   - name: url
-    value: mqtt://localhost:1883
+    value: mqtt://mosquitto:1883
   - name: topic
     value: trafficcontrol/exitcam
   - name: consumerID
     value: "{uuid}"
 scopes:
   - trafficcontrolservice
+  - cameraimulation

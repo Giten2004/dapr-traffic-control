@@ -1,7 +1,11 @@
+using TrafficControlService.Models;
+
 namespace TrafficControlService.Actors;
 
 public class VehicleActor : Actor, IVehicleActor, IRemindable
 {
+    private const string DAPR_STORE_NAME = "statestore";
+
     public readonly ISpeedingViolationCalculator _speedingViolationCalculator;
     private readonly string _roadId;
     private readonly DaprClient _daprClient;
@@ -23,7 +27,8 @@ public class VehicleActor : Actor, IVehicleActor, IRemindable
 
             // store vehicle state
             var vehicleState = new VehicleState(msg.LicenseNumber, msg.Timestamp);
-            await this.StateManager.SetStateAsync("VehicleState", vehicleState);
+            await this.StateManager.SetStateAsync(DAPR_STORE_NAME, vehicleState);
+            Logger.LogInformation($"SetStateAsync, VehicleState, LicenseNumber: [{vehicleState.LicenseNumber}], EntryTimestamp:{vehicleState.EntryTimestamp}");
 
             // register a reminder for cars that enter but don't exit within 20 seconds
             // (they might have broken down and need road assistence)
@@ -48,9 +53,12 @@ public class VehicleActor : Actor, IVehicleActor, IRemindable
             await UnregisterReminderAsync("VehicleLost");
 
             // get vehicle state
-            var vehicleState = await this.StateManager.GetStateAsync<VehicleState>("VehicleState");
+            var vehicleState = await this.StateManager.GetStateAsync<VehicleState>(DAPR_STORE_NAME);
+            Logger.LogInformation($"GetStateAsync, VehicleState, LicenseNumber: [{vehicleState.LicenseNumber}], EntryTimestamp:{vehicleState.EntryTimestamp}");
+
+
             vehicleState = vehicleState with { ExitTimestamp = msg.Timestamp };
-            await this.StateManager.SetStateAsync("VehicleState", vehicleState);
+            await this.StateManager.SetStateAsync(DAPR_STORE_NAME, vehicleState);
 
             // handle possible speeding violation
             int violation = _speedingViolationCalculator.DetermineSpeedingViolationInKmh(
@@ -85,12 +93,13 @@ public class VehicleActor : Actor, IVehicleActor, IRemindable
             // remove lost vehicle timer
             await UnregisterReminderAsync("VehicleLost");
 
-            var vehicleState = await this.StateManager.GetStateAsync<VehicleState>("VehicleState");
+            var vehicleState = await this.StateManager.GetStateAsync<VehicleState>(DAPR_STORE_NAME);
 
             Logger.LogInformation($"Lost track of vehicle with license-number {vehicleState.LicenseNumber}. " +
                 "Sending road-assistence.");
 
             // send road assistence ...
+            await _daprClient.PublishEventAsync("pubsub", "vehiclelost", vehicleState);
         }
     }
 }

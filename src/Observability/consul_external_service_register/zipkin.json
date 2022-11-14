@@ -1,0 +1,11 @@
+{
+    "id": "zipkin",
+    "name": "zipkin",
+    "port": 9411,
+    "check": {
+      "name": "ping check",
+      "args": ["ping", "-c1", "zipkin"],
+      "interval": "30s",
+      "status": "passing"
+    }
+  }

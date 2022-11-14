@@ -1,0 +1,45 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  labels:
+    app: seq
+    version: v1
+  name: seq
+  namespace: dapr-trafficcontrol
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: seq
+  strategy:
+    type: Recreate
+  template:
+    metadata:
+      labels:
+        app: seq
+    spec:
+      containers:
+        - name: seq
+          image: datalust/seq:latest
+          imagePullPolicy: IfNotPresent
+          ports:
+          - containerPort: 80
+          env:
+          - name: ACCEPT_EULA
+            value: "Y"
+---
+
+apiVersion: v1
+kind: Service
+metadata:
+  labels:
+    app: seq
+  name: seq
+  namespace: dapr-trafficcontrol
+spec:
+  ports:
+  - name: "data"
+    port: 80
+    targetPort: 80
+  selector:
+    app: seq

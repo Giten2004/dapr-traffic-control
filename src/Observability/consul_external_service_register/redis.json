@@ -1,0 +1,11 @@
+{
+    "id": "redis",
+    "name": "redis",
+    "port": 6379,
+    "check": {
+      "name": "ping check",
+      "args": ["ping", "-c1", "redis"],
+      "interval": "30s",
+      "status": "passing"
+    }
+  }

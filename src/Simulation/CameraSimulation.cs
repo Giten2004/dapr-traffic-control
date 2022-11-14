@@ -1,14 +1,31 @@
+using System.Text;
+using System.Text.Json;
+//using Simulation.Proxies;
+using Simulation.Events;
+using Simulation;
+//using MQTTnet;
+//using MQTTnet.Client;
+//using MQTTnet.Client.Options;
+using System;
+using System.Threading.Tasks;
+using Simulation.Proxies;
+
 namespace Simulation;
 
 public class CameraSimulation
 {
-    private readonly ITrafficControlService _trafficControlService;
+   private const string PubSub_Name = "mqtt-pubsub";
+   private const string Enter_Topic_Name = "trafficcontrol/entrycam";
+   private const string Exit_Topic_Name = "trafficcontrol/exitcam";
+
     private Random _rnd;
     private int _camNumber;
     private int _minEntryDelayInMS = 50;
     private int _maxEntryDelayInMS = 5000;
     private int _minExitDelayInS = 4;
     private int _maxExitDelayInS = 10;
+
+    private ITrafficControlService _trafficControlService;
 
     public CameraSimulation(int camNumber, ITrafficControlService trafficControlService)
     {
@@ -39,16 +56,34 @@ public class CameraSimulation
                         LicenseNumber = GenerateRandomLicenseNumber(),
                         Timestamp = entryTimestamp
                     };
+                    //await _trafficControlService.SendVehicleEntryAsync(vehicleRegistered);
+
+                    var eventJson = JsonSerializer.Serialize(vehicleRegistered);
                     await _trafficControlService.SendVehicleEntryAsync(vehicleRegistered);
+                    //Console.WriteLine($"enter json: {eventJson}");
+
                     Console.WriteLine($"Simulated ENTRY of vehicle with license-number {vehicleRegistered.LicenseNumber} in lane {vehicleRegistered.Lane}");
 
+                    var randomNumber = _rnd.Next(1, 20);
+                    if (randomNumber == 10)
+                    {
+                        Console.WriteLine($"Vehicle lost with license-number {vehicleRegistered.LicenseNumber} in lane {vehicleRegistered.Lane}");
+
+                        return;
+                    }
 
                     // simulate exit
                     TimeSpan exitDelay = TimeSpan.FromSeconds(_rnd.Next(_minExitDelayInS, _maxExitDelayInS) + _rnd.NextDouble());
-                    Task.Delay(exitDelay).Wait();
+                    await Task.Delay(exitDelay);
+
                     vehicleRegistered.Timestamp = DateTime.Now;
                     vehicleRegistered.Lane = _rnd.Next(1, 4);
+                    //await _trafficControlService.SendVehicleExitAsync(vehicleRegistered);
+
+                    var exiteventJson = JsonSerializer.Serialize(vehicleRegistered);
+                    ///Console.WriteLine($"exit json: {exiteventJson}");
                     await _trafficControlService.SendVehicleExitAsync(vehicleRegistered);
+
                     Console.WriteLine($"Simulated EXIT of vehicle with license-number {vehicleRegistered.LicenseNumber} in lane {vehicleRegistered.Lane}");
                 }).Wait();
             }

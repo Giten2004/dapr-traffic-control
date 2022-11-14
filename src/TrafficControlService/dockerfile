@@ -1,21 +1,27 @@
-FROM mcr.microsoft.com/dotnet/sdk:6.0-bullseye-slim AS build-env
+#See https://aka.ms/containerfastmode to understand how Visual Studio uses this Dockerfile to build your images for faster debugging.
+ARG NET_IMAGE=6.0-bullseye-slim
+FROM mcr.microsoft.com/dotnet/aspnet:${NET_IMAGE} AS base
 WORKDIR /app
-
-# Copy necessary files and restore as distinct layer
-COPY TrafficControlService.csproj ./
-RUN dotnet restore
-
-# Copy everything else and build
-COPY . ./
-RUN dotnet publish -c Release -o out TrafficControlService.csproj
-
-# Build runtime image
-FROM mcr.microsoft.com/dotnet/aspnet:6.0-bullseye-slim
-COPY --from=build-env /app/out .
-
 # Expose ports
 EXPOSE 6000/tcp
 ENV ASPNETCORE_URLS http://*:6000
 
-# Start
+FROM mcr.microsoft.com/dotnet/sdk:${NET_IMAGE} AS build
+WORKDIR /src
+
+# Copy necessary files and restore as distinct layer
+COPY src/TrafficControlService/TrafficControlService.csproj ./src/TrafficControlService/
+RUN dotnet restore "src/TrafficControlService/TrafficControlService.csproj"
+
+COPY . .
+WORKDIR "/src/src/TrafficControlService"
+RUN dotnet build "TrafficControlService.csproj" -c Release -o /app/build
+
+
+FROM build AS publish
+RUN dotnet publish --no-restore "TrafficControlService.csproj" -c Release -o /app/publish
+
+FROM base AS final
+WORKDIR /app
+COPY --from=publish /app/publish .
 ENTRYPOINT ["dotnet", "TrafficControlService.dll"]

@@ -1,0 +1,27 @@
+ARG NET_IMAGE=6.0-bullseye-slim
+FROM mcr.microsoft.com/dotnet/aspnet:${NET_IMAGE} AS base
+WORKDIR /app
+
+FROM mcr.microsoft.com/dotnet/sdk:${NET_IMAGE} AS build
+WORKDIR /src
+
+# Copy necessary files and restore as distinct layer
+COPY src/Simulation_dapr/Simulation_dapr.csproj ./src/Simulation_dapr/
+RUN dotnet restore "src/Simulation_dapr/Simulation_dapr.csproj"
+
+# Copy everything else and build
+COPY . ./
+
+WORKDIR "/src/src/Simulation_dapr/"
+RUN dotnet build "Simulation_dapr.csproj" -c Release -o /app/build
+
+# Build runtime image
+FROM build AS publish
+RUN dotnet publish --no-restore "Simulation_dapr.csproj" -c Release -o /app/publish
+
+
+FROM base AS final
+WORKDIR /app
+COPY --from=publish /app/publish .
+# Start
+ENTRYPOINT ["dotnet", "Simulation_dapr.dll"]

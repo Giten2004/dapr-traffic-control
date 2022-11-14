@@ -1,3 +1,6 @@
+using Simulation.Events;
+using System.Threading.Tasks;
+
 namespace Simulation.Proxies;
 
 public interface ITrafficControlService

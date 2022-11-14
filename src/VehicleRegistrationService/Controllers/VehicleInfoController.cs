@@ -1,4 +1,9 @@
-﻿namespace VehicleRegistrationService.Controllers;
+﻿using Microsoft.AspNetCore.Mvc;
+using Microsoft.Extensions.Logging;
+using VehicleRegistrationService.Models;
+using VehicleRegistrationService.Repositories;
+
+namespace VehicleRegistrationService.Controllers;
 
 [ApiController]
 [Route("[controller]")]

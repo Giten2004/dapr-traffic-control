@@ -1,0 +1,541 @@
+version: '3.4'
+
+services:
+  prometheus:
+    image: prom/prometheus
+    volumes:
+      - "./src/dapr/components/prometheus.yml:/etc/prometheus/prometheus.yml"
+    ports:
+      - "9090:9090"
+    command: [
+      "--config.file=/etc/prometheus/prometheus.yml"
+      ]
+    depends_on:
+      - zipkin-mysql
+    environment:
+      - TZ=Asia/Shanghai
+
+  grafana:
+    image: grafana/grafana
+    ports:
+      - 3000:3000
+    depends_on:
+      - prometheus
+    environment:
+      - GF_AUTH_ANONYMOUS_ENABLED=true
+      - GF_AUTH_ANONYMOUS_ORG_ROLE=Admin
+      - TZ=Asia/Shanghai
+
+  setup_grafana_datasource:
+    image: appropriate/curl
+    depends_on:
+      - grafana
+    volumes:
+      - ./src/Observability/grafana/create-datasource-and-dashboard.sh:/create.sh:ro
+    command: /create.sh
+    
+  setup_service_register:
+    image: appropriate/curl
+    depends_on:
+      - consulserver
+    volumes:
+      - ./src/Observability/consul_external_service_register:/consul_external_service_register:ro
+    command: /consul_external_service_register/register_infratructure_2_consul.sh
+
+  maildev:
+    image: maildev/maildev
+    ports:
+      - "2080:1080"
+      # send emails via port 1025
+      - "1025:1025"
+    environment:
+      - TZ=Asia/Shanghai
+
+  rabbitmq:
+    image: rabbitmq:3-management-alpine
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+    environment:
+      - TZ=Asia/Shanghai
+
+  redis:
+    image: redis:alpine
+    ports:
+      - "6379:6379"
+    environment:
+      - TZ=Asia/Shanghai
+
+  seq:
+    image: datalust/seq:latest
+    environment:
+      - ACCEPT_EULA=Y
+      - TZ=Asia/Shanghai
+    ports:
+      - "5340:80"
+
+# Refer -> https://github.com/openzipkin-attic/docker-zipkin/blob/master/docker-compose.yml
+  zipkin-mysql:
+    image: openzipkin/zipkin-mysql
+    # Uncomment to expose the storage port for testing
+    # ports:
+    #   - 3306:3306
+    environment:
+      - TZ=Asia/Shanghai
+      - JVM_ARGS="-Xms1024m -Xmx1024m"
+
+  # The zipkin process services the UI, and also exposes a POST endpoint that
+  # instrumentation can send trace data to. Scribe is disabled by default.
+  zipkin:
+    image: openzipkin/zipkin
+    # Environment settings are defined here https://github.com/openzipkin/zipkin/blob/master/zipkin-server/README.md#environment-variables
+    environment:
+      - STORAGE_TYPE=mysql
+      # Point the zipkin at the storage backend
+      - MYSQL_HOST=zipkin-mysql
+      - MYSQL_USER=zipkin
+      - MYSQL_PASS=zipkin
+      # Uncomment to enable scribe
+      # - SCRIBE_ENABLED=true
+      # Uncomment to enable self-tracing
+      # - SELF_TRACING_ENABLED=true
+      # Uncomment to enable debug logging
+      # - JAVA_OPTS=-Dlogging.level.zipkin2=DEBUG
+      - TZ=Asia/Shanghai
+      - JVM_ARGS="-Xms1024m -Xmx1024m"
+    ports:
+      # Port used for the Zipkin UI and HTTP Api
+      - 9411:9411
+      # Uncomment if you set SCRIBE_ENABLED=true
+      # - 9410:9410
+    depends_on:
+      - zipkin-mysql
+
+  # Adds a cron to process spans since midnight every hour, and all spans each day
+  # This data is served by http://192.168.99.100:8080/dependency
+  #
+  # For more details, see https://github.com/openzipkin/docker-zipkin-dependencies
+  dependencies:
+    image: openzipkin/zipkin-dependencies
+    entrypoint: crond -f
+    environment:
+      - STORAGE_TYPE=mysql
+      - MYSQL_HOST=zipkin-mysql
+      # Add the baked-in username and password for the zipkin-mysql image
+      - MYSQL_USER=zipkin
+      - MYSQL_PASS=zipkin
+      # Uncomment to see dependency processing logs
+      # - ZIPKIN_LOG_LEVEL=DEBUG
+      # Uncomment to adjust memory used by the dependencies job
+      # - JAVA_OPTS=-verbose:gc -Xms1G -Xmx1G
+    depends_on:
+      - zipkin-mysql
+
+
+      
+  mosquitto:
+    image: eclipse-mosquitto:latest
+    volumes:
+      - "./src/Infrastructure/mosquitto/mosquitto.conf:/mosquitto/config/mosquitto.conf"
+    ports:
+      - "1883:1883"
+      - "9001:9001"
+    environment:
+      - TZ=Asia/Shanghai
+
+  mqtt-exporter:
+    image: kpetrem/mqtt-exporter
+    ports:
+      - 9000:9000
+    environment:
+      - TZ=Asia/Shanghai
+      - MQTT_ADDRESS=mosquitto
+    restart: unless-stopped
+    depends_on:
+      - mosquitto
+
+  consulserver: 
+    image: hashicorp/consul:latest
+    ports:
+      - "8500:8500"
+      - "8600:8600/tcp"
+      - "8600:8600/udp"
+    command: "agent -server -ui -node=server-1 -bootstrap-expect=1 -client=0.0.0.0 -enable-script-checks"
+    environment:
+      - TZ=Asia/Shanghai
+
+  dapr_placement:
+    image: "daprio/dapr:latest"
+    command: ["./placement",
+      "-id", "dapr-placement-0",
+      "-log-level", "debug",
+      "-enable-metrics",
+      "-log-as-json", "true",
+      "-metrics-port", "9090",
+      "-port", "50005"
+      ]
+    ports:
+      - "50005:50005"
+    environment:
+      - TZ=Asia/Shanghai
+
+# did not find a way to start multiple daprplacement instance in docker compose yet.
+  # dapr_placement2:
+  #   image: "daprio/dapr:latest"
+  #   command: ["./placement",
+  #     "-id", "dapr-placement-1",
+  #     "-log-level", "debug",
+  #     "-enable-metrics",
+  #     "-metrics-port", "9090",
+  #     "-port", "50005"
+  #     ]
+  #   environment:
+  #     - TZ=Asia/Shanghai
+
+  vehicleregistrationservice:
+    image: ${REGISTRY:-dtc}/vehicleregistrationservice:${TAG:-latest}
+    build:
+      context: .
+      dockerfile: src/VehicleRegistrationService/Dockerfile
+    environment:
+      - TZ=Asia/Shanghai
+      - SeqServerUrl=http://seq
+    ports:
+      - "6002:6002"
+
+  vehicleregistrationservice-dapr:
+    # image: "daprio/daprd:1.8.4"
+    image: "daprio/dapr:latest"
+    network_mode: "service:vehicleregistrationservice"
+    depends_on:
+      - vehicleregistrationservice
+    command: ["./daprd",
+      "-app-id", "vehicleregistrationservice",
+      "-app-port", "6002",
+      "-components-path", "/components",
+      "-config", "/config/config.yaml",
+      "-log-level", "debug",
+      "-enable-api-logging",
+      "-enable-profiling",
+      "-profile-port", "7777",
+      "-enable-metrics",
+      "-log-as-json", "true",
+      "-metrics-port", "9090",
+      "-dapr-http-port", "3500",
+      "-dapr-grpc-port", "50001"
+      ]
+    volumes:
+      - "./src/dapr/components/:/components"
+      - "./src/dapr/config/:/config"
+
+##############################################################################################
+
+  finecollectionservice:
+    image: ${REGISTRY:-dtc}/finecollectionservice:${TAG:-latest}
+    build:
+      context: .
+      dockerfile: src/FineCollectionService/Dockerfile
+    environment:
+      - TZ=Asia/Shanghai
+      - SeqServerUrl=http://seq
+    ports:
+      - "6001:6001"
+
+  finecollectionservice-dapr:
+    # image: "daprio/daprd:1.8.4"
+    image: "daprio/dapr:latest"
+    network_mode: "service:finecollectionservice"
+    depends_on:
+      - vehicleregistrationservice
+      - finecollectionservice
+    command: ["./daprd",
+      "-app-id", "finecollectionservice",
+      "-app-port", "6001",
+      "-components-path", "/components",
+      "-config", "/config/config.yaml",
+      "-log-level", "debug",
+      "-enable-api-logging",
+      "-enable-profiling",
+      "-profile-port", "7777",
+      "-enable-metrics",
+      "-log-as-json", "true",
+      "-metrics-port", "9090",
+      "-dapr-http-port", "3500",
+      "-dapr-grpc-port", "50001"
+      ]
+    volumes:
+      - "./src/dapr/components/:/components"
+      - "./src/dapr/config/:/config"
+
+  trafficcontrolservice:
+    image: ${REGISTRY:-dtc}/trafficcontrolservice:${TAG:-latest}
+    build:
+      context: .
+      dockerfile: src/TrafficControlService/dockerfile
+    environment:
+      - TZ=Asia/Shanghai
+      - SeqServerUrl=http://seq
+    ports:
+      - "6000:6000"
+      - "7777:7777"
+    depends_on:
+      - finecollectionservice
+      - dapr_placement
+
+  trafficcontrolservice-dapr:
+    image: "daprio/dapr:latest"
+    network_mode: "service:trafficcontrolservice"
+    depends_on:
+      - finecollectionservice
+      - trafficcontrolservice
+    command: ["./daprd",
+      "-app-id", "trafficcontrolservice",
+      "-app-port", "6000",
+      "-components-path", "/components",
+      "-config", "/config/config.yaml",
+      "-placement-host-address", "dapr_placement:50005",
+      "-log-level", "debug",
+      "-enable-api-logging",
+      "-enable-profiling",
+      "-profile-port", "7777",
+      "-enable-metrics",
+      "-log-as-json", "true",
+      "-metrics-port", "9090",
+      "-dapr-http-port", "3500",
+      "-dapr-grpc-port", "50001"
+      ]
+    volumes:
+      - "./src/dapr/components/:/components"
+      - "./src/dapr/config/:/config"
+
+
+
+##### scale the instances
+  finecollectionservice-2:
+    image: ${REGISTRY:-dtc}/finecollectionservice:${TAG:-latest}
+    build:
+      context: .
+      dockerfile: src/FineCollectionService/Dockerfile
+    environment:
+      - TZ=Asia/Shanghai
+      - SeqServerUrl=http://seq
+
+  finecollectionservice-2-dapr:
+    # image: "daprio/daprd:1.8.4"
+    image: "daprio/dapr:latest"
+    network_mode: "service:finecollectionservice-2"
+    depends_on:
+      - vehicleregistrationservice
+      - finecollectionservice-2
+    command: ["./daprd",
+      "-app-id", "finecollectionservice",
+      "-app-port", "6001",
+      "-components-path", "/components",
+      "-config", "/config/config.yaml",
+      "-log-level", "debug",
+      "-enable-api-logging",
+      "-enable-profiling",
+      "-profile-port", "7777",
+      "-enable-metrics",
+      "-log-as-json", "true",
+      "-metrics-port", "9090",
+      "-dapr-http-port", "3500",
+      "-dapr-grpc-port", "50001"
+      ]
+    volumes:
+      - "./src/dapr/components/:/components"
+      - "./src/dapr/config/:/config"
+
+  finecollectionservice-3:
+    image: ${REGISTRY:-dtc}/finecollectionservice:${TAG:-latest}
+    build:
+      context: .
+      dockerfile: src/FineCollectionService/Dockerfile
+    environment:
+      - TZ=Asia/Shanghai
+      - SeqServerUrl=http://seq
+
+  finecollectionservice-3-dapr:
+    # image: "daprio/daprd:1.8.4"
+    image: "daprio/dapr:latest"
+    network_mode: "service:finecollectionservice-3"
+    depends_on:
+      - vehicleregistrationservice
+      - finecollectionservice-3
+    command: ["./daprd",
+      "-app-id", "finecollectionservice",
+      "-app-port", "6001",
+      "-components-path", "/components",
+      "-config", "/config/config.yaml",
+      "-log-level", "debug",
+      "-enable-api-logging",
+      "-enable-profiling",
+      "-profile-port", "7777",
+      "-enable-metrics",
+      "-log-as-json", "true",
+      "-metrics-port", "9090",
+      "-dapr-http-port", "3500",
+      "-dapr-grpc-port", "50001"
+      ]
+    volumes:
+      - "./src/dapr/components/:/components"
+      - "./src/dapr/config/:/config"
+
+############################################################################################
+
+  cameraimulation2_1:
+    image: ${REGISTRY:-dtc}/cameraimulation2:${TAG:-latest}
+    build:
+      context: .
+      dockerfile: src/Simulation_dapr/dockerfile
+    environment:
+      - TZ=Asia/Shanghai
+      - SeqServerUrl=http://seq
+    depends_on:
+      - mosquitto
+
+  cameraimulation2_1-dapr:
+    image: "daprio/dapr:latest"
+    network_mode: "service:cameraimulation2_1"
+    depends_on:
+      - cameraimulation2_1
+    command: ["./daprd",
+      "-app-id", "cameraimulation",
+      "-components-path", "/components",
+      "-config", "/config/config.yaml",
+      "-log-level", "debug",
+      "-enable-api-logging",
+      "-enable-profiling",
+      "-profile-port", "7777",
+      "-enable-metrics",
+      "-log-as-json", "true",
+      "-metrics-port", "9090",
+      "-dapr-http-port", "3500",
+      "-dapr-grpc-port", "50001"
+      ]
+    volumes:
+      - "./src/dapr/components/:/components"
+      - "./src/dapr/config/:/config"
+
+  cameraimulation2_2:
+    image: ${REGISTRY:-dtc}/cameraimulation2:${TAG:-latest}
+    build:
+      context: .
+      dockerfile: src/Simulation_dapr/dockerfile
+    environment:
+      - TZ=Asia/Shanghai
+      - SeqServerUrl=http://seq
+    depends_on:
+      - mosquitto
+
+  cameraimulation2_2-dapr:
+    image: "daprio/dapr:latest"
+    network_mode: "service:cameraimulation2_2"
+    depends_on:
+      - cameraimulation2_2
+    command: ["./daprd",
+      "-app-id", "cameraimulation",
+      "-components-path", "/components",
+      "-config", "/config/config.yaml",
+      "-log-level", "debug",
+      "-enable-api-logging",
+      "-enable-profiling",
+      "-profile-port", "7777",
+      "-enable-metrics",
+      "-log-as-json", "true",
+      "-metrics-port", "9090",
+      "-dapr-http-port", "3500",
+      "-dapr-grpc-port", "50001"
+      ]
+    volumes:
+      - "./src/dapr/components/:/components"
+      - "./src/dapr/config/:/config"
+
+  cameraimulation2_3:
+    image: ${REGISTRY:-dtc}/cameraimulation2:${TAG:-latest}
+    build:
+      context: .
+      dockerfile: src/Simulation_dapr/dockerfile
+    environment:
+      - TZ=Asia/Shanghai
+      - SeqServerUrl=http://seq
+    depends_on:
+      - mosquitto
+
+  cameraimulation2_3-dapr:
+    image: "daprio/dapr:latest"
+    network_mode: "service:cameraimulation2_3"
+    depends_on:
+      - cameraimulation2_3
+    command: ["./daprd",
+      "-app-id", "cameraimulation",
+      "-components-path", "/components",
+      "-config", "/config/config.yaml",
+      "-log-level", "debug",
+      "-enable-api-logging",
+      "-enable-profiling",
+      "-profile-port", "7777",
+      "-enable-metrics",
+      "-log-as-json", "true",
+      "-metrics-port", "9090",
+      "-dapr-http-port", "3500",
+      "-dapr-grpc-port", "50001"
+      ]
+    volumes:
+      - "./src/dapr/components/:/components"
+      - "./src/dapr/config/:/config"
+
+# this image does not write log to seq, will make noisy when invesigate issue.
+  # cameraimulation-1:
+  #   image: ${REGISTRY:-dtc}/cameraimulation:${TAG:-latest}
+  #   build:
+  #     context: .
+  #     dockerfile: src/Simulation/dockerfile
+  #   environment:
+  #     - TZ=Asia/Shanghai
+  #     - MQTT_HOST=mosquitto
+  #   depends_on:
+  #     - trafficcontrolservice
+  #     - mosquitto
+
+###########################
+
+  dapr_linux_dev:
+    image: ${REGISTRY:-dtc}/dapr_linux:${TAG:-latest}
+    build:
+      context: .
+      dockerfile: src/dapr_linux/Dockerfile
+      args:
+        USER_ID: 1088 # $(id -u)
+        GROUP_ID: 500 # $(id -g)
+    volumes:
+      # the following is mounting folder directly 
+      - $HOME:/home/bxu
+    working_dir: /root
+    environment:
+      - TZ=Asia/Shanghai
+    ports:
+      - "36111:22"
+  dapr_linux_dev-dapr:
+    image: "daprio/dapr:latest"
+    network_mode: "service:dapr_linux_dev"
+    depends_on:
+      - dapr_linux_dev
+    command: ["./daprd",
+      "-app-id", "dapr_linux_dev",
+      "-app-port", "22",
+      "-components-path", "/components",
+      "-config", "/config/config.yaml",
+      "-log-level", "debug",
+      "-enable-api-logging",
+      "-enable-profiling",
+      "-profile-port", "7777",
+      "-enable-metrics",
+      "-log-as-json", "true",
+      "-metrics-port", "9090",
+      "-dapr-http-port", "3500",
+      "-dapr-grpc-port", "50001"
+      ]
+    volumes:
+      - "./src/dapr/components/:/components"
+      - "./src/dapr/config/:/config"

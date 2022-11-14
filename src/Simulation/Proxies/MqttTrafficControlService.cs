@@ -1,3 +1,14 @@
+using System.Text;
+using System.Text.Json;
+using Simulation.Proxies;
+using Simulation.Events;
+using Simulation;
+using MQTTnet;
+using MQTTnet.Client;
+using System.Threading.Tasks;
+using System;
+using System.Threading;
+
 namespace Simulation.Proxies;
 
 public class MqttTrafficControlService : ITrafficControlService
@@ -28,7 +39,7 @@ public class MqttTrafficControlService : ITrafficControlService
         var message = new MqttApplicationMessageBuilder()
             .WithTopic("trafficcontrol/entrycam")
             .WithPayload(Encoding.UTF8.GetBytes(eventJson))
-            .WithAtMostOnceQoS()
+            .WithQualityOfServiceLevel(MQTTnet.Protocol.MqttQualityOfServiceLevel.AtLeastOnce)
             .Build();
         await _client.PublishAsync(message, CancellationToken.None);
     }
@@ -39,7 +50,7 @@ public class MqttTrafficControlService : ITrafficControlService
         var message = new MqttApplicationMessageBuilder()
             .WithTopic("trafficcontrol/exitcam")
             .WithPayload(Encoding.UTF8.GetBytes(eventJson))
-            .WithAtMostOnceQoS()
+            .WithQualityOfServiceLevel(MQTTnet.Protocol.MqttQualityOfServiceLevel.AtLeastOnce)
             .Build();
         await _client.PublishAsync(message, CancellationToken.None);
     }

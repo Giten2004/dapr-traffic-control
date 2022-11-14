@@ -1,3 +1,9 @@
+using RandomNameGeneratorLibrary;
+using System;
+using System.Collections.Generic;
+using System.Threading;
+using VehicleRegistrationService.Models;
+
 namespace VehicleRegistrationService.Repositories;
 
 public class InMemoryVehicleInfoRepository : IVehicleInfoRepository

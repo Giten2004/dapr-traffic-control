@@ -1,23 +1,34 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: simulation
+  name: camerasimulation
   namespace: dapr-trafficcontrol
   labels:
-    app: simulation
+    app: camerasimulation
 spec:
   replicas: 1
   selector:
     matchLabels:
-      app: simulation
+      app: camerasimulation
   template:
     metadata:
       labels:
-        app: simulation
+        app: camerasimulation
+      annotations:
+        dapr.io/enabled: "true"
+        dapr.io/app-id: "camerasimulation"
+        dapr.io/config: "dapr-config"
+        dapr.io/log-level: "debug"
+        dapr.io/log-as-json: "true"
+        dapr.io/enable-api-logging: "true"
+        dapr.io/metrics-port: "9090"
+        dapr.io/enable-profiling: "true"
     spec:
       containers:
-      - name: simulation
-        image: dapr-trafficcontrol/simulation:1.0
+      - name: camerasimulation
+        image: docker.liquid-capital.liquidcap.com:5000/cameraimulation2:1.0
         env:
-          - name: MQTT_HOST
-            value: mosquitto.dapr-trafficcontrol.svc.cluster.local
+          - name: SeqServerUrl
+            value: "http://seq.dapr-trafficcontrol.svc.cluster.local"
+      imagePullSecrets:
+        - name: regcred

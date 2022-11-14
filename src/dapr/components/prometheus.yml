@@ -1,0 +1,27 @@
+global:
+  scrape_interval:     15s # Set the scrape interval to every 15 seconds. Default is every 1 minute.
+  evaluation_interval: 15s # Evaluate rules every 15 seconds. The default is every 1 minute.
+
+# A scrape configuration containing exactly one endpoint to scrape:
+# Here it's Prometheus itself.
+scrape_configs:
+  - job_name: 'dapr'
+
+    # Override the global default and scrape targets from this job every 5 seconds.
+    scrape_interval: 5s
+
+    static_configs:
+      - targets: ['vehicleregistrationservice:9090',
+                  'finecollectionservice:9090', 
+                  'finecollectionservice-2:9090', 
+                  'finecollectionservice-3:9090',
+                  'cameraimulation2_1:9090', 
+                  'cameraimulation2_2:9090', 
+                  'cameraimulation2_3:9090', 
+                  'trafficcontrolservice:9090'] # Replace with Dapr metrics port if not default
+
+  - job_name: 'zipkin'
+    scrape_interval: 5s
+    metrics_path: '/prometheus'
+    static_configs:
+      - targets: ['zipkin:9411']

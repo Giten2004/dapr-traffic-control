@@ -1,0 +1,11 @@
+{
+    "id": "dependencies",
+    "name": "dependencies",
+    "port": 2080,
+    "check": {
+      "name": "ping check",
+      "args": ["ping", "-c1", "dependencies"],
+      "interval": "30s",
+      "status": "passing"
+    }
+  }

@@ -1,6 +1,4 @@
-﻿using System.Text.Json;
-
-namespace FineCollectionService.Controllers;
+﻿namespace FineCollectionService.Controllers;
 
 [ApiController]
 [Route("")]
@@ -40,7 +38,7 @@ public class CollectionController : ControllerBase
         }
     }
 
-    [Topic("pubsub", "speedingviolations", "deadletters", false)]
+    [Topic("pubsub", "speedingviolations")]
     [Route("collectfine")]
     [HttpPost()]
     public async Task<ActionResult> CollectFine(SpeedingViolation speedingViolation, [FromServices] DaprClient daprClient)
@@ -69,25 +67,7 @@ public class CollectionController : ControllerBase
         };
         await daprClient.InvokeBindingAsync("sendmail", "create", body, metadata);
 
-        return Ok();
-    }
-
-    [Topic("pubsub", "deadletters")]
-    [Route("deadletters")]
-    [HttpPost()]
-    public ActionResult HandleDeadLetter(object message)
-    {
-        _logger.LogError("The service was not able to handle a CollectFine message.");
-
-        try
-        {
-            var messageJson = JsonSerializer.Serialize<object>(message);
-            _logger.LogInformation($"Unhandled message content: {messageJson}");
-        }
-        catch 
-        {
-            _logger.LogError("Unhandled message's payload could not be deserialized.");
-        }
+        _logger.LogWarning("email has been sent.");
 
         return Ok();
     }

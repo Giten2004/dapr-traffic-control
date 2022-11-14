@@ -1,0 +1,11 @@
+{
+    "id": "zipkin-mysql",
+    "name": "zipkin-mysql",
+    "port": 3306,
+    "check": {
+      "name": "ping check",
+      "args": ["ping", "-c1", "zipkin-mysql"],
+      "interval": "30s",
+      "status": "passing"
+    }
+  }

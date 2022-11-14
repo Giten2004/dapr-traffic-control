@@ -1,0 +1,11 @@
+{
+    "id": "mosquitto",
+    "name": "mosquitto",
+    "port": 9001,
+    "check": {
+      "name": "ping check",
+      "args": ["ping", "-c1", "mosquitto"],
+      "interval": "30s",
+      "status": "passing"
+    }
+  }

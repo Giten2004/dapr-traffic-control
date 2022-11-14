@@ -1,0 +1,11 @@
+{
+    "id": "grafana",
+    "name": "grafana",
+    "port": 3000,
+    "check": {
+      "name": "ping check",
+      "args": ["ping", "-c1", "grafana"],
+      "interval": "30s",
+      "status": "passing"
+    }
+  }

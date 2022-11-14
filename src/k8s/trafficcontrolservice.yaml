@@ -19,9 +19,19 @@ spec:
         dapr.io/app-id: "trafficcontrolservice"
         dapr.io/app-port: "6000"
         dapr.io/config: "dapr-config"
+        dapr.io/log-level: "debug"
+        dapr.io/log-as-json: "true"
+        dapr.io/enable-api-logging: "true"
+        dapr.io/metrics-port: "9090"
+        dapr.io/enable-profiling: "true"
     spec:
       containers:
       - name: trafficcontrolservice
-        image: dapr-trafficcontrol/trafficcontrolservice:1.0
+        image: docker.liquid-capital.liquidcap.com:5000/trafficcontrolservice:1.0
         ports:
         - containerPort: 6000
+        env:
+          - name: SeqServerUrl
+            value: "http://seq.dapr-trafficcontrol.svc.cluster.local"
+      imagePullSecrets:
+        - name: regcred

@@ -1,0 +1,11 @@
+{
+    "id": "maildev",
+    "name": "maildev",
+    "port": 2080,
+    "check": {
+      "name": "ping check",
+      "args": ["ping", "-c1", "maildev"],
+      "interval": "30s",
+      "status": "passing"
+    }
+  }

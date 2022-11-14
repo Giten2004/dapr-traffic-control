@@ -8,9 +8,9 @@ spec:
   version: v1
   metadata:
   - name: host
-    value: localhost
+    value: maildev
   - name: port
-    value: 4025
+    value: 1025
   - name: user
     secretKeyRef:
       name: smtp.user

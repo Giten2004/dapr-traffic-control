@@ -1,0 +1,11 @@
+{
+    "id": "rabbitmq",
+    "name": "rabbitmq",
+    "port": 15672,
+    "check": {
+      "name": "ping check",
+      "args": ["ping", "-c1", "rabbitmq"],
+      "interval": "30s",
+      "status": "passing"
+    }
+  }

@@ -5,11 +5,11 @@
     <TargetFramework>net6.0</TargetFramework>
     <LangVersion>10</LangVersion>
     <Nullable>enable</Nullable>
-    <ImplicitUsings>enable</ImplicitUsings>
+    <ImplicitUsings>disable</ImplicitUsings>
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="MQTTNet" Version="3.1.2" />
+    <PackageReference Include="MQTTnet" Version="4.1.2.350" />
   </ItemGroup>
 
 </Project>

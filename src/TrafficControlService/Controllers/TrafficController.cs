@@ -108,37 +108,47 @@ public class TrafficController : ControllerBase
 
 #else
 
-        [HttpPost("entrycam")]
-        public async Task<ActionResult> VehicleEntryAsync(VehicleRegistered msg)
+    [HttpPost("entrycam")]
+    public async Task<ActionResult> VehicleEntryAsync(VehicleRegistered msg)
+    {
+        try
         {
-            try
-            {
-                var actorId = new ActorId(msg.LicenseNumber);
-                var proxy = ActorProxy.Create<IVehicleActor>(actorId, nameof(VehicleActor));
-                await proxy.RegisterEntryAsync(msg);
-                return Ok();
-            }
-            catch
-            {
-                return StatusCode(500);
-            }
-        }
+            // log entry
+            _logger.LogDebug($"VehicleEntryAsync, lane {msg.Lane} at {msg.Timestamp.ToString("hh:mm:ss")} " +
+                $"of vehicle with license-number {msg.LicenseNumber}.");
 
-        [HttpPost("exitcam")]
-        public async Task<ActionResult> VehicleExitAsync(VehicleRegistered msg)
-        {
-            try
-            {
-                var actorId = new ActorId(msg.LicenseNumber);
-                var proxy = ActorProxy.Create<IVehicleActor>(actorId, nameof(VehicleActor));
-                await proxy.RegisterExitAsync(msg);
-                return Ok();
-            }
-            catch
-            {
-                return StatusCode(500);
-            }
+            var actorId = new ActorId(msg.LicenseNumber);
+            var proxy = ActorProxy.Create<IVehicleActor>(actorId, nameof(VehicleActor));
+            await proxy.RegisterEntryAsync(msg);
+            return Ok();
         }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error occurred while processing ENTRY(ActorProxy)");
+            return StatusCode(500);
+        }
+    }
+
+    [HttpPost("exitcam")]
+    public async Task<ActionResult> VehicleExitAsync(VehicleRegistered msg)
+    {
+        try
+        {
+            // log exit
+            _logger.LogDebug($"VehicleExitAsync, lane {msg.Lane} at {msg.Timestamp.ToString("hh:mm:ss")} " +
+                $"of vehicle with license-number {msg.LicenseNumber}.");
+
+            var actorId = new ActorId(msg.LicenseNumber);
+            var proxy = ActorProxy.Create<IVehicleActor>(actorId, nameof(VehicleActor));
+            await proxy.RegisterExitAsync(msg);
+            return Ok();
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error occurred while processing EXIT(ActorProxy)");
+            return StatusCode(500);
+        }
+    }
 
 #endif
 

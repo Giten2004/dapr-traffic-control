@@ -1,19 +1,35 @@
 // create web-app
+using Microsoft.Extensions.Configuration;
+using Serilog;
+
+var appName = "TrafficControlService";
+
 var builder = WebApplication.CreateBuilder(args);
+
+var configurationBuilder = new ConfigurationBuilder()
+        //.SetBasePath(env.ContentRootPath)
+        //.AddJsonFile("appsettings.json", optional: false, reloadOnChange: true)
+        //.AddJsonFile($"appsettings.{env.EnvironmentName}.json", optional: true)
+        .AddEnvironmentVariables();
+
+
+var seqServerUrl = configurationBuilder.Build()["SeqServerUrl"];
+
+builder.Host.UseSerilog((ctx, lc) => {
+    lc.ReadFrom.Configuration(builder.Configuration)
+    .WriteTo.Console()
+    .WriteTo.Seq(seqServerUrl)
+    .MinimumLevel.Debug()
+    .Enrich.WithProperty("MachineName", Environment.MachineName)
+    .Enrich.WithProperty("ApplicationName", appName);
+});
 
 builder.Services.AddSingleton<ISpeedingViolationCalculator>(
     new DefaultSpeedingViolationCalculator("A12", 10, 100, 5));
 
 builder.Services.AddSingleton<IVehicleStateRepository, DaprVehicleStateRepository>();
-
-var daprHttpPort = Environment.GetEnvironmentVariable("DAPR_HTTP_PORT") ?? "3600";
-var daprGrpcPort = Environment.GetEnvironmentVariable("DAPR_GRPC_PORT") ?? "60000";
-builder.Services.AddDaprClient(builder => builder
-    .UseHttpEndpoint($"http://localhost:{daprHttpPort}")
-    .UseGrpcEndpoint($"http://localhost:{daprGrpcPort}"));
-
+builder.Services.AddDaprClient();
 builder.Services.AddControllers();
-
 builder.Services.AddActors(options =>
 {
     options.Actors.RegisterActor<VehicleActor>();
@@ -26,7 +42,9 @@ if (app.Environment.IsDevelopment())
 {
     app.UseDeveloperExceptionPage();
 }
+
 app.UseCloudEvents();
+app.UseRouting();
 
 // configure routing
 app.MapControllers();

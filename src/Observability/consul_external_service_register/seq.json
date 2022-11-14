@@ -1,0 +1,11 @@
+{
+    "id": "seq",
+    "name": "seq",
+    "port": 80,
+    "check": {
+      "name": "ping check",
+      "args": ["ping", "-c1", "seq"],
+      "interval": "30s",
+      "status": "passing"
+    }
+  }

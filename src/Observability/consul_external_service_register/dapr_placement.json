@@ -1,0 +1,11 @@
+{
+    "id": "dapr_placement",
+    "name": "dapr_placement",
+    "port": 50005,
+    "check": {
+      "name": "ping check",
+      "args": ["ping", "-c1", "dapr_placement"],
+      "interval": "30s",
+      "status": "passing"
+    }
+  }

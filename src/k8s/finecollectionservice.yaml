@@ -19,13 +19,22 @@ spec:
         dapr.io/app-id: "finecollectionservice"
         dapr.io/app-port: "6001"
         dapr.io/config: "dapr-config"
+        dapr.io/log-level: "debug"
+        dapr.io/log-as-json: "true"
+        dapr.io/enable-api-logging: "true"
+        dapr.io/metrics-port: "9090"
+        dapr.io/enable-profiling: "true"
     spec:
       containers:
       - name: finecollectionservice
-        image: dapr-trafficcontrol/finecollectionservice:1.0
+        image: docker.liquid-capital.liquidcap.com:5000/finecollectionservice:1.0
         ports:
         - containerPort: 6001
         env:
           - name: USE_KUBERNETES_SECRETS
             value: "true"
+          - name: SeqServerUrl
+            value: "http://seq.dapr-trafficcontrol.svc.cluster.local"
+      imagePullSecrets:
+        - name: regcred
 

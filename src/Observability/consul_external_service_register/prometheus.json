@@ -1,0 +1,11 @@
+{
+  "id": "prometheus",
+  "name": "prometheus",
+  "port": 9090,
+  "check": {
+    "name": "ping check",
+    "args": ["ping", "-c1", "prometheus"],
+    "interval": "30s",
+    "status": "passing"
+  }
+}
